@@ -10,19 +10,17 @@ import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.TextView;
 
-import androidx.annotation.ColorInt;
-import androidx.annotation.DrawableRes;
-import androidx.annotation.IntDef;
-
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 
+import androidx.annotation.ColorInt;
+import androidx.annotation.DrawableRes;
+import androidx.annotation.IntDef;
 import razerdp.basepopup.R;
 import razerdp.demo.base.interfaces.MultiClickListener;
 import razerdp.demo.utils.StringUtil;
 import razerdp.demo.utils.UIHelper;
 import razerdp.demo.utils.ViewUtil;
-import razerdp.util.log.PopupLog;
 
 import static razerdp.demo.widget.TitleBarView.TitleBarMode.MODE_BOTH;
 import static razerdp.demo.widget.TitleBarView.TitleBarMode.MODE_LEFT;
@@ -37,6 +35,7 @@ public class TitleBarView extends FrameLayout implements View.OnClickListener, V
     private static final String TAG = "TitleBarView";
 
     View mRootView;
+    View mStatusBarHolderView;
     TextView mTitleBarTitle;
     ImageView mTitleBarIconLeft;
     TextView mTitleBarTextLeft;
@@ -75,6 +74,8 @@ public class TitleBarView extends FrameLayout implements View.OnClickListener, V
     int leftTextSize = 14;
     int rightTextSize = 14;
     int titleTextSize = 16;
+
+    boolean hideStatusbarHolder = false;
 
     OnTitleBarClickCallback mTitlebarClickCallback;
 
@@ -116,12 +117,15 @@ public class TitleBarView extends FrameLayout implements View.OnClickListener, V
         rightTextColor = a.getColor(R.styleable.TitleBarView_right_text_color, rightTextColor);
         titleTextColor = a.getColor(R.styleable.TitleBarView_title_text_color, titleTextColor);
 
+        hideStatusbarHolder = a.getBoolean(R.styleable.TitleBarView_hide_status_bar_holder, hideStatusbarHolder);
+
         a.recycle();
     }
 
     private void initView(Context context) {
         View.inflate(context, R.layout.widget_title_bar_view, this);
         this.mRootView = findViewById(R.id.title_bar_root);
+        this.mStatusBarHolderView = findViewById(R.id.statusbar_placeholder);
         this.mTitleBarTitle = findViewById(R.id.title_bar_title);
         this.mTitleBarIconLeft = findViewById(R.id.title_bar_icon_left);
         this.mTitleBarTextLeft = findViewById(R.id.title_bar_text_left);
@@ -155,6 +159,7 @@ public class TitleBarView extends FrameLayout implements View.OnClickListener, V
         setLeftIcon(leftIcon);
         setRightIcon(rightIcon);
         setMode(mode);
+        hideStatusbarHolder(hideStatusbarHolder);
     }
 
 
@@ -267,6 +272,11 @@ public class TitleBarView extends FrameLayout implements View.OnClickListener, V
         return this;
     }
 
+    public TitleBarView hideStatusbarHolder(boolean hide) {
+        this.mStatusBarHolderView.setVisibility(hide ? View.GONE : View.VISIBLE);
+        return this;
+    }
+
     @Override
     public void onLayoutChange(View v, int left, int top, int right, int bottom, int oldLeft, int oldTop, int oldRight, int oldBottom) {
 
@@ -276,7 +286,6 @@ public class TitleBarView extends FrameLayout implements View.OnClickListener, V
                 (mTitleBarTextRight.getVisibility() == VISIBLE ? mTitleBarTextRight.getWidth() : 0);
 
         int padding = Math.max(paddingLeft, paddingRight) + TITLE_PADDING;
-        PopupLog.i(TAG, "onLayoutChange  :: " + padding);
         mTitleBarTitle.setPadding(padding, 0, padding, 0);
 
     }

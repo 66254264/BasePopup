@@ -15,7 +15,6 @@ import android.view.animation.AccelerateDecelerateInterpolator;
 import android.view.animation.AccelerateInterpolator;
 import android.widget.ImageView;
 
-import java.lang.ref.WeakReference;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import razerdp.blur.thread.ThreadPoolManager;
@@ -30,13 +29,15 @@ public class BlurImageView extends ImageView {
     private static final String TAG = "BlurImageView";
 
     private volatile boolean abortBlur = false;
-    private WeakReference<PopupBlurOption> mBlurOption;
+    private PopupBlurOption mBlurOption;
     private AtomicBoolean blurFinish = new AtomicBoolean(false);
     private volatile boolean isAnimating = false;
     private long startDuration;
     private CacheAction mCacheAction;
     private CacheAction mAttachedCache;
     private boolean isAttachedToWindow = false;
+    private int cutoutX;
+    private int cutoutY;
 
 
     public BlurImageView(Context context) {
@@ -63,13 +64,23 @@ public class BlurImageView extends ImageView {
         }
     }
 
+    public BlurImageView setCutoutX(int cutoutX) {
+        this.cutoutX = cutoutX;
+        return this;
+    }
+
+    public BlurImageView setCutoutY(int cutoutY) {
+        this.cutoutY = cutoutY;
+        return this;
+    }
+
     public void applyBlurOption(PopupBlurOption option) {
         applyBlurOption(option, false);
     }
 
     private void applyBlurOption(PopupBlurOption option, boolean isOnUpdate) {
         if (option == null) return;
-        mBlurOption = new WeakReference<PopupBlurOption>(option);
+        mBlurOption = option;
         View anchorView = option.getBlurView();
         if (anchorView == null) {
             PopupLog.e(TAG, "模糊锚点View为空，放弃模糊操作...");
@@ -86,18 +97,14 @@ public class BlurImageView extends ImageView {
                 if (!BlurHelper.renderScriptSupported()) {
                     PopupLog.e(TAG, "不支持脚本模糊。。。最低支持api 17(Android 4.2.2)，将采用fastblur");
                 }
-                setImageBitmapOnUiThread(BlurHelper.blur(getContext(), anchorView, option.getBlurPreScaleRatio(), option.getBlurRadius(), option.isFullScreen()), isOnUpdate);
+                setImageBitmapOnUiThread(BlurHelper.blur(getContext(), anchorView, option.getBlurPreScaleRatio(), option
+                        .getBlurRadius(), option.isFullScreen(), cutoutX, cutoutY), isOnUpdate);
             } catch (Exception e) {
                 PopupLog.e(TAG, "模糊异常", e);
                 e.printStackTrace();
                 destroy();
             }
         }
-    }
-
-    PopupBlurOption getOption() {
-        if (mBlurOption == null) return null;
-        return mBlurOption.get();
     }
 
     @Override
@@ -107,15 +114,13 @@ public class BlurImageView extends ImageView {
     }
 
     public void update() {
-        if (getOption() != null) {
-            applyBlurOption(getOption(), true);
+        if (mBlurOption != null) {
+            applyBlurOption(mBlurOption, true);
         }
     }
 
     /**
      * alpha进场动画
-     *
-     * @param duration
      */
     public void start(long duration) {
         startDuration = duration;
@@ -142,7 +147,7 @@ public class BlurImageView extends ImageView {
         if (duration > 0) {
             startAlphaInAnimation(duration);
         } else if (duration == -2) {
-            startAlphaInAnimation(getOption() == null ? 500 : getOption().getBlurInDuration());
+            startAlphaInAnimation(mBlurOption == null ? 500 : mBlurOption.getBlurInDuration());
         } else {
             setImageAlpha(255);
         }
@@ -176,7 +181,7 @@ public class BlurImageView extends ImageView {
         if (duration > 0) {
             startAlphaOutAnimation(duration);
         } else if (duration == -2) {
-            startAlphaOutAnimation(getOption() == null ? 500 : getOption().getBlurOutDuration());
+            startAlphaOutAnimation(mBlurOption == null ? 500 : mBlurOption.getBlurOutDuration());
         } else {
             setImageAlpha(0);
         }
@@ -259,7 +264,7 @@ public class BlurImageView extends ImageView {
 
         setImageAlpha(isOnUpdate ? 255 : 0);
         setImageBitmap(bitmap);
-        PopupBlurOption option = getOption();
+        PopupBlurOption option = mBlurOption;
         if (option != null && !option.isFullScreen()) {
             //非全屏的话，则需要将bitmap变化到对应位置
             View anchorView = option.getBlurView();
@@ -290,7 +295,6 @@ public class BlurImageView extends ImageView {
         setImageBitmap(null);
         abortBlur = true;
         if (mBlurOption != null) {
-            mBlurOption.clear();
             mBlurOption = null;
         }
         if (mCacheAction != null) {
@@ -311,12 +315,13 @@ public class BlurImageView extends ImageView {
         CreateBlurBitmapRunnable(View target) {
             outWidth = target.getWidth();
             outHeight = target.getHeight();
-            mBitmap = BlurHelper.getViewBitmap(target, getOption().getBlurPreScaleRatio(), getOption().isFullScreen());
+            mBitmap = BlurHelper.getViewBitmap(target, mBlurOption.getBlurPreScaleRatio(), mBlurOption
+                    .isFullScreen(), cutoutX, cutoutY);
         }
 
         @Override
         public void run() {
-            if (abortBlur || getOption() == null) {
+            if (abortBlur || mBlurOption == null) {
                 PopupLog.e(TAG, "放弃模糊，可能是已经移除了布局");
                 return;
             }
@@ -325,7 +330,7 @@ public class BlurImageView extends ImageView {
                     mBitmap,
                     outWidth,
                     outHeight,
-                    getOption().getBlurRadius()),
+                    mBlurOption.getBlurRadius()),
                     false);
         }
     }
@@ -363,7 +368,7 @@ public class BlurImageView extends ImageView {
             return System.currentTimeMillis() - startTime > BLUR_TASK_WAIT_TIMEOUT;
         }
 
-        public void destroy() {
+        void destroy() {
             if (action != null) {
                 removeCallbacks(action);
             }

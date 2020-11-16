@@ -6,7 +6,15 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.MOUNT_UNMOUNT_FILESYSTEMS" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.REORDER_TASKS" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+    <!--    蒲公英要求权限：-->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" /> <!-- 获取网络状态 -->
+    <uses-permission android:name="android.permission.READ_PHONE_STATE" />  <!-- 获取设备信息 -->
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" /> <!-- 获取MAC地址-->
+    <uses-permission android:name="android.permission.GET_TASKS" />
+    <uses-permission android:name="android.permission.READ_LOGS" /> <!-- 获取logcat日志 -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
     <application
         android:name="razerdp.demo.app.PopupDemoApp"
@@ -18,7 +26,8 @@
         android:supportsRtl="true"
         android:theme="@style/AppTheme"
         android:usesCleartextTraffic="true"
-        tools:ignore="GoogleAppIndexingWarning">
+        tools:ignore="GoogleAppIndexingWarning"
+        tools:overrideLibrary="com.pgyersdk">
         <!-- 全面屏 -->
         <meta-data
             android:name="android.max_aspect"
@@ -69,8 +78,30 @@
             android:configChanges="orientation|keyboardHidden|screenSize"
             android:screenOrientation="landscape" />
         <activity android:name="razerdp.demo.ui.issuestest.Issue230TestActivity" />
+        <activity android:name="razerdp.demo.ui.issuestest.Issue236TestActivity" />
+        <activity android:name="razerdp.demo.ui.issuestest.Issue238TestActivity" />
+        <activity android:name="razerdp.demo.ui.issuestest.Issue242TestActivity" />
+        <activity android:name="razerdp.demo.ui.lifecycle.ShowOnCreateActivity" />
+        <activity android:name="razerdp.demo.ui.ApiListActivity" />
+        <activity android:name="razerdp.demo.ui.apidemo.ApiDemoActivity" />
+        <activity
+            android:name="razerdp.demo.ui.issuestest.Issue224TestActivity"
+            android:screenOrientation="portrait"
+            android:windowSoftInputMode="adjustPan|stateHidden" />
+        <activity android:name="razerdp.demo.ui.fullscreen.FullScreenActivity" />
+        <activity android:name="razerdp.demo.ui.rtl.RTLActivity" />
+
+        <!--更改为 adjustPan 键盘不会遮挡弹窗输入框-->
+        <activity
+            android:name="razerdp.demo.ui.issuestest.Issue277TestActivity"
+            android:windowSoftInputMode="adjustResize|stateHidden" />
+        <activity
+            android:name="razerdp.demo.ui.dialog.DialogActivity"
+            android:theme="@style/DialogTheme" />
+        <activity android:name="razerdp.demo.ui.issuestest.Issue358TestActivity" />
 
         <service android:name="razerdp.demo.services.DemoService" />
+        <service android:name="razerdp.demo.services.DelayDemoService" />
 
         <provider
             android:name="androidx.core.content.FileProvider"
@@ -79,8 +110,9 @@
             android:grantUriPermissions="true">
             <meta-data
                 android:name="android.support.FILE_PROVIDER_PATHS"
-                android:resource="@xml/file_paths_public" />
+                android:resource="@xml/file_paths_public_popup" />
         </provider>
+
     </application>
 
 </manifest>

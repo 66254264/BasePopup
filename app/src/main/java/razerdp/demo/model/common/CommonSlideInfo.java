@@ -9,9 +9,10 @@ import android.view.animation.TranslateAnimation;
 import razerdp.basepopup.BasePopupWindow;
 import razerdp.demo.model.DemoCommonUsageInfo;
 import razerdp.demo.popup.PopupSlide;
-import razerdp.demo.popup.options.PopupSlideOption;
 import razerdp.demo.popup.PopupSlideSmall;
-import razerdp.util.SimpleAnimationUtils;
+import razerdp.demo.popup.options.PopupSlideOption;
+import razerdp.util.animation.AnimationHelper;
+import razerdp.util.animation.ScaleConfig;
 
 /**
  * Created by 大灯泡 on 2019/9/20
@@ -23,6 +24,9 @@ public class CommonSlideInfo extends DemoCommonUsageInfo {
     public int gravity = Gravity.BOTTOM;
     public boolean withAnchor;
     public boolean blur;
+    public BasePopupWindow.GravityMode horizontalGravityMode = BasePopupWindow.GravityMode.RELATIVE_TO_ANCHOR;
+    public BasePopupWindow.GravityMode verticalGravityMode = BasePopupWindow.GravityMode.RELATIVE_TO_ANCHOR;
+
 
     PopupSlideOption mPopupOption;
     PopupSlide mPopupSlide;
@@ -39,8 +43,12 @@ public class CommonSlideInfo extends DemoCommonUsageInfo {
         float fromY = 0;
         float toX = 0;
         float toY = 0;
-        Animation showAnimation = SimpleAnimationUtils.getDefaultScaleAnimation(true);
-        Animation dismissAnimation = SimpleAnimationUtils.getDefaultScaleAnimation(false);
+        Animation showAnimation = AnimationHelper.asAnimation()
+                .withScale(ScaleConfig.CENTER)
+                .toShow();
+        Animation dismissAnimation = AnimationHelper.asAnimation()
+                .withScale(ScaleConfig.CENTER)
+                .toDismiss();
         if (withAnchor) {
             if (mPopupSlideSmall == null) {
                 mPopupSlideSmall = new PopupSlideSmall(v.getContext());
@@ -76,6 +84,7 @@ public class CommonSlideInfo extends DemoCommonUsageInfo {
         }
 
         popupWindow.setBlurBackgroundEnable(blur);
+        popupWindow.setPopupGravityMode(horizontalGravityMode, verticalGravityMode);
         popupWindow.setPopupGravity(gravity);
         popupWindow.setShowAnimation(showAnimation);
         popupWindow.setDismissAnimation(dismissAnimation);

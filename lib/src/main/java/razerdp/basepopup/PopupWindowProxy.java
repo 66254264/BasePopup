@@ -1,8 +1,17 @@
 package razerdp.basepopup;
 
-import android.os.Build;
-import android.view.Gravity;
+import android.app.Activity;
+import android.content.Context;
+import android.content.ContextWrapper;
+import android.graphics.drawable.ColorDrawable;
+import android.text.TextUtils;
+import android.util.Log;
 import android.view.View;
+import android.view.WindowManager;
+import android.widget.PopupWindow;
+
+import razerdp.library.R;
+import razerdp.util.PopupUtils;
 
 /**
  * Created by 大灯泡 on 2017/1/12.
@@ -10,52 +19,180 @@ import android.view.View;
  * 与basePopupWindow强引用(或者说与PopupController强引用)
  */
 
-class PopupWindowProxy extends BasePopupWindowProxy {
+class PopupWindowProxy extends PopupWindow implements ClearMemoryObject {
     private static final String TAG = "PopupWindowProxy";
+    BasePopupContextWrapper mBasePopupContextWrapper;
 
-    PopupWindowProxy(View contentView, int width, int height, BasePopupHelper mHelper) {
-        super(contentView, width, height, mHelper);
-    }
+    private boolean oldFocusable = true;
+    private boolean isHandledFullScreen;
 
-    /**
-     * fix showAsDropDown when android api ver is over N
-     * <p>
-     * https://code.google.com/p/android/issues/detail?id=221001
-     *
-     * @param anchor
-     * @param xoff
-     * @param yoff
-     * @param gravity
-     */
-    public void showAsDropDownProxy(View anchor, int xoff, int yoff, int gravity) {
-        PopupCompatManager.showAsDropDown(this, anchor, xoff, yoff, gravity);
-    }
+    private static final int FULL_SCREEN_FLAG = View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+            | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+            | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+            | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+            | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+            | View.SYSTEM_UI_FLAG_FULLSCREEN;
 
-    public void showAsDropDownProxy(View anchor, int xoff, int yoff) {
-        showAsDropDownProxy(anchor, xoff, yoff, Gravity.NO_GRAVITY);
-    }
-
-    public void showAtLocationProxy(View parent, int gravity, int x, int y) {
-        PopupCompatManager.showAtLocation(this, parent, gravity, x, y);
+    public PopupWindowProxy(BasePopupContextWrapper context) {
+        super(context);
+        mBasePopupContextWrapper = context;
+        setFocusable(true);
+        setOutsideTouchable(true);
+        setBackgroundDrawable(new ColorDrawable());
+        setInputMethodMode(PopupWindow.INPUT_METHOD_NEEDED);
     }
 
 
     @Override
-    public void callSuperShowAsDropDown(View anchor, int xoff, int yoff, int gravity) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
-            super.showAsDropDown(anchor, xoff, yoff, gravity);
-        } else {
-            super.showAsDropDown(anchor, xoff, yoff);
+    public void update() {
+        try {
+            mBasePopupContextWrapper.mWindowManagerProxy.update();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void handleFullScreenFocusable() {
+        oldFocusable = isFocusable();
+        setFocusable(false);
+        isHandledFullScreen = true;
+    }
+
+    private void restoreFocusable() {
+        updateFocusable(oldFocusable);
+        setFocusable(oldFocusable);
+        isHandledFullScreen = false;
+    }
+
+    void updateFocusable(boolean focusable) {
+        if (mBasePopupContextWrapper != null && mBasePopupContextWrapper.mWindowManagerProxy != null) {
+            mBasePopupContextWrapper.mWindowManagerProxy.updateFocus(focusable);
+        }
+    }
+
+    void updateFlag(int mode, boolean updateImmediately, int... flags) {
+        if (mBasePopupContextWrapper != null && mBasePopupContextWrapper.mWindowManagerProxy != null) {
+            mBasePopupContextWrapper.mWindowManagerProxy.updateFlag(mode, updateImmediately, flags);
         }
     }
 
     @Override
-    public void callSuperShowAtLocation(View parent, int gravity, int x, int y) {
+    public void showAtLocation(View parent, int gravity, int x, int y) {
+        if (isShowing()) return;
+        Activity activity = PopupUtils.getActivity(parent.getContext(), false);
+        if (activity == null) {
+            Log.e(TAG, PopupUtils.getString(R.string.basepopup_error_non_act_context));
+            return;
+        }
+        onBeforeShowExec(activity);
         super.showAtLocation(parent, gravity, x, y);
+        onAfterShowExec(activity);
+    }
+
+    void onBeforeShowExec(Activity act) {
+        if (isFullScreen(act)) {
+            handleFullScreenFocusable();
+        }
+    }
+
+    void onAfterShowExec(Activity act) {
+        if (isHandledFullScreen) {
+            int flag = FULL_SCREEN_FLAG;
+            if (act != null) {
+                flag = act.getWindow().getDecorView().getSystemUiVisibility();
+            }
+            getContentView().setSystemUiVisibility(flag);
+            restoreFocusable();
+        }
+    }
+
+    boolean isFullScreen(Activity act) {
+        if (act == null) return false;
+        try {
+            View decorView = act.getWindow().getDecorView();
+            WindowManager.LayoutParams lp = act.getWindow().getAttributes();
+            int i = lp.flags;
+            int f = decorView.getWindowSystemUiVisibility();
+
+            return (i & WindowManager.LayoutParams.FLAG_FULLSCREEN) != 0
+                    || ((f & View.SYSTEM_UI_FLAG_HIDE_NAVIGATION) != 0 || (f & View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION) != 0);
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     @Override
-    public boolean callSuperIsShowing() {
-        return super.isShowing();
+    public void dismiss() {
+        if (mBasePopupContextWrapper != null && mBasePopupContextWrapper.helper != null) {
+            mBasePopupContextWrapper.helper.dismiss(true);
+        }
+    }
+
+    void superDismiss() {
+        try {
+            super.dismiss();
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            clear(false);
+        }
+    }
+
+    WindowManagerProxy prevWindow() {
+        if (mBasePopupContextWrapper == null || mBasePopupContextWrapper.mWindowManagerProxy == null) {
+            return null;
+        }
+        return mBasePopupContextWrapper.mWindowManagerProxy.preWindow();
+    }
+
+    @Override
+    public void clear(boolean destroy) {
+        if (mBasePopupContextWrapper != null) {
+            mBasePopupContextWrapper.clear(destroy);
+        }
+        PopupUtils.clearViewFromParent(getContentView());
+        if (destroy) {
+            mBasePopupContextWrapper = null;
+        }
+    }
+
+    /**
+     * 采取ContextWrapper来hook WindowManager，从此再也无需反射及各种黑科技了~
+     * 感谢
+     *
+     * @xchengDroid https://github.com/xchengDroid  提供的方案
+     */
+    static class BasePopupContextWrapper extends ContextWrapper implements ClearMemoryObject {
+        BasePopupHelper helper;
+        WindowManagerProxy mWindowManagerProxy;
+
+        public BasePopupContextWrapper(Context base, BasePopupHelper helper) {
+            super(base);
+            this.helper = helper;
+        }
+
+        @Override
+        public Object getSystemService(String name) {
+            if (TextUtils.equals(name, Context.WINDOW_SERVICE)) {
+                if (mWindowManagerProxy != null) {
+                    return mWindowManagerProxy;
+                }
+                WindowManager windowManager = (WindowManager) super.getSystemService(name);
+                mWindowManagerProxy = new WindowManagerProxy(windowManager, helper);
+                return mWindowManagerProxy;
+            }
+            return super.getSystemService(name);
+        }
+
+        @Override
+        public void clear(boolean destroy) {
+            if (mWindowManagerProxy != null) {
+                mWindowManagerProxy.clear(destroy);
+            }
+            if (destroy) {
+                helper = null;
+                mWindowManagerProxy = null;
+            }
+        }
     }
 }

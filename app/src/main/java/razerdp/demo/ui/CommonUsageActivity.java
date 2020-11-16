@@ -3,7 +3,6 @@ package razerdp.demo.ui;
 import android.content.Intent;
 import android.text.TextUtils;
 import android.view.View;
-import android.widget.ImageView;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
@@ -22,15 +21,25 @@ import razerdp.demo.base.baseadapter.MultiType;
 import razerdp.demo.base.baseadapter.OnItemClickListener;
 import razerdp.demo.model.DemoCommonUsageInfo;
 import razerdp.demo.model.DemoCommonUsageTitle;
+import razerdp.demo.model.common.CommonAnchorMatchInfo;
 import razerdp.demo.model.common.CommonAnimateInfo;
 import razerdp.demo.model.common.CommonAnyPosInfo;
+import razerdp.demo.model.common.CommonArrowInfo;
 import razerdp.demo.model.common.CommonBackgroundAlignInfo;
 import razerdp.demo.model.common.CommonBackgroundInfo;
+import razerdp.demo.model.common.CommonBarControllerInfo;
+import razerdp.demo.model.common.CommonBlurInfo;
 import razerdp.demo.model.common.CommonBottomSheetDialogInfo;
+import razerdp.demo.model.common.CommonControllerInfo;
+import razerdp.demo.model.common.CommonDialogActivityInfo;
 import razerdp.demo.model.common.CommonFriendCircleInfo;
+import razerdp.demo.model.common.CommonFullScreenActivityInfo;
 import razerdp.demo.model.common.CommonGestureNavInfo;
 import razerdp.demo.model.common.CommonInputInfo;
+import razerdp.demo.model.common.CommonRTLInfo;
 import razerdp.demo.model.common.CommonSlideInfo;
+import razerdp.demo.model.lifecycle.ShowInServiceInfo;
+import razerdp.demo.model.lifecycle.ShowOnCreateInfo;
 import razerdp.demo.utils.ButterKnifeUtil;
 import razerdp.demo.utils.DescBuilder;
 import razerdp.demo.utils.UIHelper;
@@ -81,7 +90,8 @@ public class CommonUsageActivity extends BaseActivity {
             }
         });
         rvContent.setLayoutManager(gridLayoutManager);
-        rvContent.addItemDecoration(new GridItemDecoration(new SpaceOption.Builder().size(UIHelper.DP8).build()));
+        rvContent.addItemDecoration(new GridItemDecoration(new SpaceOption.Builder().size(UIHelper.DP8)
+                .build()));
         mAdapter = new MultiRecyclerViewAdapter(this, createItem());
         mAdapter.appendHolder(InnerTitleViewHolder.class, 0)
                 .appendHolder(InnerItemViewHolder.class, 1);
@@ -103,20 +113,32 @@ public class CommonUsageActivity extends BaseActivity {
 
     private List<MultiType> createItem() {
         List<MultiType> result = new ArrayList<>();
-        result.add(new DemoCommonUsageTitle("位置类"));
+        result.add(new DemoCommonUsageTitle("位置相关"));
         result.add(new CommonSlideInfo());
         result.add(new CommonAnyPosInfo());
         result.add(new CommonFriendCircleInfo());
-        result.add(new DemoCommonUsageTitle("动画类"));
+        result.add(new CommonAnchorMatchInfo());
+        result.add(new CommonArrowInfo());
+        result.add(new DemoCommonUsageTitle("PopupWindow控制相关"));
+        result.add(new CommonControllerInfo());
+        result.add(new CommonBarControllerInfo());
+        result.add(new DemoCommonUsageTitle("动画相关"));
         result.add(new CommonAnimateInfo());
-        result.add(new DemoCommonUsageTitle("背景类"));
+        result.add(new DemoCommonUsageTitle("背景相关"));
         result.add(new CommonBackgroundInfo());
         result.add(new CommonBackgroundAlignInfo());
-        result.add(new DemoCommonUsageTitle("输入法"));
+        result.add(new CommonBlurInfo());
+        result.add(new DemoCommonUsageTitle("生命期相关"));
+        result.add(new ShowOnCreateInfo());
+        result.add(new ShowInServiceInfo());
+        result.add(new DemoCommonUsageTitle("输入法相关"));
         result.add(new CommonInputInfo());
         result.add(new DemoCommonUsageTitle("兼容性测试"));
         result.add(new CommonBottomSheetDialogInfo());
         result.add(new CommonGestureNavInfo());
+        result.add(new CommonFullScreenActivityInfo());
+        result.add(new CommonDialogActivityInfo());
+        result.add(new CommonRTLInfo());
 
         return result;
     }
@@ -146,8 +168,6 @@ public class CommonUsageActivity extends BaseActivity {
 
     static class InnerItemViewHolder extends BaseMultiRecyclerViewHolder<DemoCommonUsageInfo> {
 
-        @BindView(R.id.iv_tips)
-        ImageView ivTips;
         @BindView(R.id.tv_fun)
         TextView tvFun;
         @BindView(R.id.divider)
@@ -169,11 +189,6 @@ public class CommonUsageActivity extends BaseActivity {
         public void onBindData(DemoCommonUsageInfo data, int position) {
             tvFun.setText(data.title);
             tvOption.setText(TextUtils.isEmpty(data.option) ? "配置" : data.option);
-        }
-
-        @OnClick(R.id.iv_tips)
-        void showTips(View v) {
-            getData().shoTips(v);
         }
 
         @OnClick(R.id.tv_option)

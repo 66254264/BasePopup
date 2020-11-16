@@ -1,11 +1,18 @@
 package razerdp.basepopup;
 
+import android.app.Activity;
+import android.app.Dialog;
 import android.content.Context;
 import android.view.View;
 import android.view.ViewGroup;
 
 import java.lang.ref.WeakReference;
 
+import androidx.fragment.app.Fragment;
+import androidx.lifecycle.Lifecycle;
+import androidx.lifecycle.LifecycleObserver;
+import androidx.lifecycle.LifecycleOwner;
+import androidx.lifecycle.OnLifecycleEvent;
 import razerdp.widget.QuickPopup;
 
 /**
@@ -13,23 +20,53 @@ import razerdp.widget.QuickPopup;
  * <p>
  * 快速建立Popup的builder
  */
-public class QuickPopupBuilder {
+public class QuickPopupBuilder implements LifecycleObserver {
 
-    private WeakReference<Context> mContextWeakReference;
     private QuickPopupConfig mConfig;
-    private OnConfigApplyListener mOnConfigApplyListener;
+    private WeakReference<Object> ownerAnchorParent;
 
-    int width = ViewGroup.LayoutParams.WRAP_CONTENT;
-    int height = ViewGroup.LayoutParams.WRAP_CONTENT;
+    private int width = 0;
+    private int height = 0;
 
+    @OnLifecycleEvent(Lifecycle.Event.ON_DESTROY)
+    void onDestroy() {
+        ownerAnchorParent = null;
+    }
 
-    private QuickPopupBuilder(Context context) {
-        mContextWeakReference = new WeakReference<>(context);
+    private QuickPopupBuilder(Object obj) {
+        ownerAnchorParent = new WeakReference<>(obj);
         mConfig = QuickPopupConfig.generateDefault();
+        Activity activity = BasePopupHelper.findActivity(obj, false);
+        if (activity instanceof LifecycleOwner) {
+            ((LifecycleOwner) activity).getLifecycle().addObserver(this);
+        } else {
+            if (activity != null) {
+                activity.getWindow().getDecorView().addOnAttachStateChangeListener(new View.OnAttachStateChangeListener() {
+                    @Override
+                    public void onViewAttachedToWindow(View v) {
+
+                    }
+
+                    @Override
+                    public void onViewDetachedFromWindow(View v) {
+                        v.removeOnAttachStateChangeListener(this);
+                        onDestroy();
+                    }
+                });
+            }
+        }
     }
 
     public static QuickPopupBuilder with(Context context) {
         return new QuickPopupBuilder(context);
+    }
+
+    public static QuickPopupBuilder with(Fragment fragment) {
+        return new QuickPopupBuilder(fragment);
+    }
+
+    public static QuickPopupBuilder with(Dialog dialog) {
+        return new QuickPopupBuilder(dialog);
     }
 
     public QuickPopupBuilder contentView(int resId) {
@@ -53,20 +90,12 @@ public class QuickPopupBuilder {
                 .height(ViewGroup.LayoutParams.WRAP_CONTENT);
     }
 
-    public QuickPopupBuilder setOnConfigApplyListener(OnConfigApplyListener onConfigApplyListener) {
-        mOnConfigApplyListener = onConfigApplyListener;
-        return this;
+
+    public final QuickPopupConfig getConfig() {
+        return mConfig;
     }
 
-    public final <C extends QuickPopupConfig> C getConfig() {
-        return (C) mConfig;
-    }
-
-    public OnConfigApplyListener getOnConfigApplyListener() {
-        return mOnConfigApplyListener;
-    }
-
-    public <C extends QuickPopupConfig> QuickPopupBuilder config(C quickPopupConfig) {
+    public QuickPopupBuilder config(QuickPopupConfig quickPopupConfig) {
         if (quickPopupConfig == null) return this;
         if (quickPopupConfig != mConfig) {
             quickPopupConfig.contentViewLayoutid(mConfig.contentViewLayoutid);
@@ -76,13 +105,24 @@ public class QuickPopupBuilder {
     }
 
     public QuickPopup build() {
-        return new QuickPopup(getContext(), mConfig, mOnConfigApplyListener, width, height);
+        Object anchor = ownerAnchorParent == null ? null : ownerAnchorParent.get();
+        if (anchor instanceof Context) {
+            return new QuickPopup((Context) anchor, width, height, mConfig);
+        }
+        if (anchor instanceof Fragment) {
+            return new QuickPopup((Fragment) anchor, width, height, mConfig);
+        }
+        if (anchor instanceof Dialog) {
+            return new QuickPopup((Dialog) anchor, width, height, mConfig);
+        }
+        throw new NullPointerException("宿主已经被销毁");
     }
 
     public QuickPopup show() {
         return show(null);
     }
 
+    @Deprecated
     public QuickPopup show(int anchorViewResid) {
         QuickPopup quickPopup = build();
         quickPopup.showPopupWindow(anchorViewResid);
@@ -99,15 +139,5 @@ public class QuickPopupBuilder {
         QuickPopup quickPopup = build();
         quickPopup.showPopupWindow(x, y);
         return quickPopup;
-    }
-
-
-    public interface OnConfigApplyListener {
-        void onConfigApply(QuickPopup basePopup, QuickPopupConfig config);
-    }
-
-    //-----------------------------------------tools-----------------------------------------
-    private Context getContext() {
-        return mContextWeakReference == null ? null : mContextWeakReference.get();
     }
 }

@@ -4,10 +4,11 @@ import android.app.Activity;
 import android.content.Context;
 import android.graphics.Rect;
 import android.view.View;
+import android.view.ViewParent;
 import android.view.ViewTreeObserver;
 import android.view.inputmethod.InputMethodManager;
 
-import razerdp.basepopup.BasePopupComponentManager;
+import razerdp.basepopup.BasePopupSDK;
 
 /**
  * Created by 大灯泡 on 2016/1/14.
@@ -18,6 +19,11 @@ public class KeyboardUtils {
      * 显示软键盘
      */
     public static void open(View view) {
+        if (view == null) return;
+        if (!view.hasFocus()) {
+            view.requestFocus();
+            view = view.findFocus();
+        }
         InputMethodManager imm = (InputMethodManager) view.getContext()
                 .getSystemService(Context.INPUT_METHOD_SERVICE);
         if (imm != null) {
@@ -29,6 +35,7 @@ public class KeyboardUtils {
      * 显示软键盘
      */
     public static void open(Context context) {
+        if (context == null) return;
         InputMethodManager imm = (InputMethodManager) context
                 .getSystemService(Context.INPUT_METHOD_SERVICE);
         imm.toggleSoftInput(0, InputMethodManager.HIDE_NOT_ALWAYS);
@@ -61,7 +68,8 @@ public class KeyboardUtils {
             InputMethodManager imm = (InputMethodManager) view.getContext()
                     .getSystemService(Context.INPUT_METHOD_SERVICE);
             if (imm != null) {
-                imm.hideSoftInputFromWindow(view.getWindowToken(), InputMethodManager.HIDE_NOT_ALWAYS);
+                imm.hideSoftInputFromWindow(view.getWindowToken(),
+                        InputMethodManager.HIDE_NOT_ALWAYS);
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -85,7 +93,9 @@ public class KeyboardUtils {
 
     public static boolean isOpen() {
         try {
-            InputMethodManager imm = (InputMethodManager) BasePopupComponentManager.getApplication().getSystemService(Context.INPUT_METHOD_SERVICE);
+            InputMethodManager imm = (InputMethodManager) BasePopupSDK.getApplication()
+                    .getSystemService(
+                            Context.INPUT_METHOD_SERVICE);
             if (imm != null) {
                 return imm.isActive();
             }
@@ -97,7 +107,9 @@ public class KeyboardUtils {
 
     public static boolean isOpen(View view) {
         try {
-            InputMethodManager imm = (InputMethodManager) BasePopupComponentManager.getApplication().getSystemService(Context.INPUT_METHOD_SERVICE);
+            InputMethodManager imm = (InputMethodManager) BasePopupSDK.getApplication()
+                    .getSystemService(
+                            Context.INPUT_METHOD_SERVICE);
             if (imm != null) {
                 return imm.isActive(view);
             }
@@ -133,23 +145,41 @@ public class KeyboardUtils {
         ViewTreeObserver.OnGlobalLayoutListener layoutListener = new ViewTreeObserver.OnGlobalLayoutListener() {
             Rect rect = new Rect();
             Rect keyboardRect = new Rect();
+            Rect originalContentRect = new Rect();
             boolean lastVisible;
             int lastHeight;
 
             @Override
             public void onGlobalLayout() {
                 View content = decor.findViewById(android.R.id.content);
+                if (content == null) return;
+                if (originalContentRect.isEmpty()) {
+                    //需要从content一直遍历往前找到decorview下的第一个child，那个为准
+                    ViewParent parent = content.getParent();
+                    for (; ; ) {
+                        if (parent.getParent() == decor) {
+                            break;
+                        }
+                        if (!(parent.getParent() instanceof View)) {
+                            break;
+                        }
+                        parent = parent.getParent();
+                    }
+                    originalContentRect.set(((View) parent).getLeft(),
+                            ((View) parent).getTop(),
+                            ((View) parent).getRight(),
+                            ((View) parent).getBottom());
+                }
                 decor.getWindowVisibleDisplayFrame(rect);
-                int screenHeight = content == null ? decor.getHeight() : content.getHeight();
-                keyboardRect.set(rect.left, rect.bottom, rect.right, screenHeight);
-                boolean isVisible = keyboardRect.height() > (screenHeight >> 2) && isOpen();
+                keyboardRect.set(rect.left, rect.bottom, rect.right, originalContentRect.bottom);
+                boolean isVisible = keyboardRect.height() > (originalContentRect.height() >> 2) && isOpen();
                 if (isVisible == lastVisible && keyboardRect.height() == lastHeight) return;
                 lastVisible = isVisible;
                 lastHeight = keyboardRect.height();
                 onKeyboardChangeListener.onKeyboardChange(keyboardRect, isVisible);
             }
         };
-        decor.getViewTreeObserver().addOnGlobalLayoutListener(layoutListener);
+        PopupUiUtils.safeAddGlobalLayoutListener(decor, layoutListener);
         return layoutListener;
     }
 

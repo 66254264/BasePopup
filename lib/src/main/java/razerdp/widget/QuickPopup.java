@@ -1,17 +1,20 @@
 package razerdp.widget;
 
 import android.animation.Animator;
+import android.app.Dialog;
 import android.content.Context;
 import android.util.Pair;
 import android.view.View;
 import android.view.animation.Animation;
 
+import androidx.annotation.Nullable;
+import androidx.fragment.app.Fragment;
+
 import java.util.HashMap;
 import java.util.Map;
 
+import razerdp.basepopup.BaseLazyPopupWindow;
 import razerdp.basepopup.BasePopupFlag;
-import razerdp.basepopup.BasePopupWindow;
-import razerdp.basepopup.QuickPopupBuilder.OnConfigApplyListener;
 import razerdp.basepopup.QuickPopupConfig;
 
 /**
@@ -19,36 +22,38 @@ import razerdp.basepopup.QuickPopupConfig;
  * <p>
  * 快速popup
  */
-public class QuickPopup extends BasePopupWindow {
+public class QuickPopup extends BaseLazyPopupWindow {
 
     private QuickPopupConfig mConfig;
-    private OnConfigApplyListener mOnConfigApplyListener;
 
-    private QuickPopup(Context context) {
-        super(context);
-    }
-
-    private QuickPopup(Context context, boolean delayInit) {
-        super(context, delayInit);
-    }
-
-    private QuickPopup(Context context, int width, int height) {
-        super(context, width, height);
-    }
-
-    private QuickPopup(Context context, int width, int height, boolean delayInit) {
-        super(context, width, height, delayInit);
-    }
-
-    public QuickPopup(Context context, QuickPopupConfig config, OnConfigApplyListener onConfigApplyListener, int w, int h) {
-        super(context, w, h, true);
+    public QuickPopup(Fragment fragment, int width, int height, QuickPopupConfig config) {
+        super(fragment, width, height);
         mConfig = config;
-        mOnConfigApplyListener = onConfigApplyListener;
-        if (mConfig != null) {
-            delayInit();
-        } else {
+        if (mConfig == null) {
             throw new NullPointerException("QuickPopupConfig must be not null!");
         }
+    }
+
+    public QuickPopup(Dialog dialog, int width, int height, QuickPopupConfig config) {
+        super(dialog, width, height);
+        mConfig = config;
+        if (mConfig == null) {
+            throw new NullPointerException("QuickPopupConfig must be not null!");
+        }
+    }
+
+    public QuickPopup(Context context, int width, int height, QuickPopupConfig config) {
+        super(context, width, height);
+        mConfig = config;
+        if (mConfig == null) {
+            throw new NullPointerException("QuickPopupConfig must be not null!");
+        }
+    }
+
+
+    @Override
+    public void onViewCreated(View contentView) {
+        super.onViewCreated(contentView);
         applyConfigSetting(mConfig);
     }
 
@@ -65,16 +70,23 @@ public class QuickPopup extends BasePopupWindow {
 
         setOffsetX(config.getOffsetX());
         setOffsetY(config.getOffsetY());
+        setMaskOffsetX(config.getMaskOffsetX());
+        setMaskOffsetY(config.getMaskOffsetY());
+
 
         setClipChildren((config.flag & BasePopupFlag.CLIP_CHILDREN) != 0);
 
         setOutSideDismiss((config.flag & BasePopupFlag.OUT_SIDE_DISMISS) != 0);
         setOutSideTouchable((config.flag & BasePopupFlag.OUT_SIDE_TOUCHABLE) != 0);
+        setBackPressEnable((config.flag & BasePopupFlag.BACKPRESS_ENABLE) != 0);
         setPopupGravity(config.getGravity());
         setAlignBackground((config.flag & BasePopupFlag.ALIGN_BACKGROUND) != 0);
         setAlignBackgroundGravity(config.getAlignBackgroundGravity());
         setAutoLocatePopup((config.flag & BasePopupFlag.AUTO_LOCATED) != 0);
-        setPopupWindowFullScreen((config.flag & BasePopupFlag.FULL_SCREEN) != 0);
+        setOverlayStatusbar((config.flag & BasePopupFlag.OVERLAY_STATUS_BAR) != 0);
+        setOverlayNavigationBar((config.flag & BasePopupFlag.OVERLAY_NAVIGATION_BAR) != 0);
+        setOverlayStatusbarMode(config.getOverlayStatusBarMode());
+        setOverlayNavigationBarMode(config.getOverlayNavigationBarMode());
         setOnDismissListener(config.getDismissListener());
         setBackground(config.getBackground());
         linkTo(config.getLinkedView());
@@ -82,13 +94,8 @@ public class QuickPopup extends BasePopupWindow {
         setMaxWidth(config.getMaxWidth());
         setMinHeight(config.getMinHeight());
         setMaxHeight(config.getMaxHeight());
-
-        setMaskLayoutWidth(config.getMaskLayoutWidth());
-        setMaskLayoutHeight(config.getMaskLayoutHeight());
-
-        if (mOnConfigApplyListener != null) {
-            mOnConfigApplyListener.onConfigApply(this, config);
-        }
+        setOnKeyboardChangeListener(config.getOnKeyboardChangeListener());
+        setKeyEventListener(config.getKeyEventListener());
     }
 
     private void applyClick() {
@@ -119,32 +126,51 @@ public class QuickPopup extends BasePopupWindow {
         }
     }
 
+    @Nullable
     public QuickPopupConfig getConfig() {
         return mConfig;
     }
 
     @Override
     protected Animation onCreateShowAnimation() {
+        if (isConfigDestroyed()) return null;
         return mConfig.getShowAnimation();
     }
 
     @Override
     protected Animation onCreateDismissAnimation() {
+        if (isConfigDestroyed()) return null;
         return mConfig.getDismissAnimation();
     }
 
     @Override
     protected Animator onCreateDismissAnimator() {
+        if (isConfigDestroyed()) return null;
         return mConfig.getDismissAnimator();
     }
 
     @Override
     protected Animator onCreateShowAnimator() {
+        if (isConfigDestroyed()) return null;
         return mConfig.getShowAnimator();
     }
 
     @Override
     public View onCreateContentView() {
+        if (isConfigDestroyed()) return null;
         return createPopupById(mConfig.getContentViewLayoutid());
+    }
+
+    boolean isConfigDestroyed() {
+        return mConfig == null || mConfig.isDestroyed();
+    }
+
+    @Override
+    public void onDestroy() {
+        if (mConfig != null) {
+            mConfig.clear(true);
+        }
+        mConfig = null;
+        super.onDestroy();
     }
 }

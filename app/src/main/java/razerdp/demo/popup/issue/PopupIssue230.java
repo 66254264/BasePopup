@@ -22,6 +22,8 @@ import razerdp.demo.base.baseadapter.SimpleRecyclerViewAdapter;
 import razerdp.demo.utils.ButterKnifeUtil;
 import razerdp.demo.utils.RandomUtil;
 import razerdp.demo.utils.UIHelper;
+import razerdp.util.animation.AnimationHelper;
+import razerdp.util.animation.ScaleConfig;
 
 /**
  * Created by 大灯泡 on 2019/10/9.
@@ -35,7 +37,6 @@ public class PopupIssue230 extends BasePopupWindow {
 
     public PopupIssue230(Context context) {
         super(context);
-        ButterKnifeUtil.bind(this, getContentView());
         setPopupGravity(Gravity.CENTER);
         setMaxHeight(UIHelper.getScreenHeight() >> 1);
         setMaxWidth(UIHelper.getScreenWidth() >> 1);
@@ -52,6 +53,11 @@ public class PopupIssue230 extends BasePopupWindow {
     }
 
     @Override
+    public void onViewCreated(View contentView) {
+        ButterKnifeUtil.bind(this, contentView);
+    }
+
+    @Override
     public View onCreateContentView() {
         return createPopupById(R.layout.popup_issue_230);
     }
@@ -62,12 +68,16 @@ public class PopupIssue230 extends BasePopupWindow {
 
     @Override
     protected Animation onCreateShowAnimation() {
-        return getDefaultScaleAnimation(true);
+        return AnimationHelper.asAnimation()
+                .withScale(ScaleConfig.CENTER)
+                .toShow();
     }
 
     @Override
     protected Animation onCreateDismissAnimation() {
-        return getDefaultScaleAnimation(false);
+        return AnimationHelper.asAnimation()
+                .withScale(ScaleConfig.CENTER)
+                .toDismiss();
     }
 
     class InnerViewHolder extends BaseSimpleRecyclerViewHolder<String> {

@@ -1,13 +1,9 @@
 package razerdp.demo;
 
 import android.content.Intent;
-import android.graphics.Color;
 import android.text.TextUtils;
 import android.view.View;
 import android.widget.TextView;
-
-import com.azhon.appupdate.config.UpdateConfiguration;
-import com.azhon.appupdate.manager.DownloadManager;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -16,26 +12,27 @@ import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import butterknife.BindView;
 import butterknife.OnClick;
+import razerdp.basepopup.QuickPopupBuilder;
+import razerdp.basepopup.QuickPopupConfig;
 import razerdp.basepopup.R;
 import razerdp.demo.base.baseactivity.BaseActivity;
 import razerdp.demo.base.baseadapter.BaseSimpleRecyclerViewHolder;
-import razerdp.demo.base.baseadapter.OnItemClickListener;
 import razerdp.demo.base.baseadapter.SimpleRecyclerViewAdapter;
-import razerdp.demo.base.interfaces.SimpleCallback;
 import razerdp.demo.model.DemoMainItem;
 import razerdp.demo.ui.ActivityLauncher;
+import razerdp.demo.ui.ApiListActivity;
 import razerdp.demo.ui.CommonUsageActivity;
 import razerdp.demo.ui.GuideActivity;
 import razerdp.demo.ui.UpdateLogActivity;
 import razerdp.demo.ui.issuestest.home.IssueHomeActivity;
-import razerdp.demo.update.UpdateRequest;
-import razerdp.demo.update.entity.UpdateInfo;
 import razerdp.demo.utils.ButterKnifeUtil;
 import razerdp.demo.utils.UIHelper;
-import razerdp.demo.utils.VersionUtil;
 import razerdp.demo.utils.ViewUtil;
 import razerdp.demo.widget.DPRecyclerView;
 import razerdp.demo.widget.DPTextView;
+import razerdp.util.animation.AnimationHelper;
+import razerdp.util.animation.ScaleConfig;
+
 
 public class DemoActivity extends BaseActivity {
 
@@ -56,67 +53,58 @@ public class DemoActivity extends BaseActivity {
 
     @Override
     protected void onInitView(View decorView) {
+
         rvContent.setLayoutManager(new LinearLayoutManager(this));
-        rvContent.addHeaderView(ViewUtil.inflate(this, R.layout.item_main_demo_header, rvContent, false));
+        View header = ViewUtil.inflate(this, R.layout.item_main_demo_header, rvContent, false);
+        header.setOnClickListener(v -> onHeaderClick());
+        rvContent.addHeaderView(header);
         mAdapter = new SimpleRecyclerViewAdapter<>(this, generateItem());
         mAdapter.setHolder(InnerViewHolder.class);
-        mAdapter.setOnItemClickListener(new OnItemClickListener<DemoMainItem>() {
-            @Override
-            public void onItemClick(View v, int position, DemoMainItem data) {
-                ActivityLauncher.start(self(), data.toClass);
-            }
-        });
+        mAdapter.setOnItemClickListener((v, position, data) -> ActivityLauncher.start(self(),
+                                                                                      data.toClass));
         rvContent.setAdapter(mAdapter);
 
-        checkForUpdate();
 
-    }
-
-    private void checkForUpdate() {
-        new UpdateRequest().checkUpdate(new SimpleCallback<UpdateInfo>() {
-            @Override
-            public void onCall(UpdateInfo data) {
-                if (data != null) {
-                    int code = data.getBuild();
-                    int currentCode = VersionUtil.getAppVersionCode();
-                    if (code <= currentCode) {
-                        UIHelper.toast("当前已经是最新版");
-                    } else {
-                        toUpdate(data);
-                    }
-                } else {
-                    UIHelper.toast("当前已经是最新版");
-                }
-            }
-        });
-    }
-
-    private void toUpdate(UpdateInfo data) {
-        int code = data.getBuild();
-        UpdateConfiguration configuration = new UpdateConfiguration()
-                .setEnableLog(true)
-                .setJumpInstallPage(true)
-                .setDialogImage(R.drawable.ic_dialog)
-                .setDialogButtonColor(UIHelper.getColor(R.color.color_blue))
-                .setDialogButtonTextColor(Color.WHITE);
-        DownloadManager manager = DownloadManager.getInstance(DemoActivity.this);
-        manager.setApkName(String.format("basepopup_v_%s.apk", code))
-                .setApkUrl(data.getInstallUrl())
-                .setSmallIcon(R.mipmap.ic_launcher)
-                .setConfiguration(configuration)
-                .setApkVersionCode(code)
-                .setApkVersionName(data.getVersion())
-                .setApkDescription(data.getChangelog())
-                .download();
+        showWjPopup();
     }
 
     private List<DemoMainItem> generateItem() {
         List<DemoMainItem> result = new ArrayList<>();
         result.add(new DemoMainItem(GuideActivity.class, "简介", GuideActivity.DESC, null));
-        result.add(new DemoMainItem(CommonUsageActivity.class, "快速入门", CommonUsageActivity.DESC, "入门推荐"));
-        result.add(new DemoMainItem(UpdateLogActivity.class, "历史更新", UpdateLogActivity.DESC, "ChangeLog"));
-        result.add(new DemoMainItem(IssueHomeActivity.class, "Issue测试Demo", IssueHomeActivity.DESC, "issue"));
+        result.add(new DemoMainItem(CommonUsageActivity.class,
+                                    "快速入门",
+                                    CommonUsageActivity.DESC,
+                                    "入门推荐"));
+        result.add(new DemoMainItem(ApiListActivity.class, "Api列表", ApiListActivity.DESC, "Api"));
+        result.add(new DemoMainItem(IssueHomeActivity.class,
+                                    "Issue测试Demo",
+                                    IssueHomeActivity.DESC,
+                                    "issue"));
+        result.add(new DemoMainItem(UpdateLogActivity.class,
+                                    "历史更新",
+                                    UpdateLogActivity.DESC,
+                                    "ChangeLog"));
         return result;
+    }
+
+    void showWjPopup() {
+        QuickPopupBuilder.with(this)
+                .contentView(R.layout.popup_wj)
+                .config(new QuickPopupConfig()
+                                .withShowAnimation(AnimationHelper.asAnimation()
+                                                           .withScale(ScaleConfig.CENTER)
+                                                           .toShow())
+                                .withDismissAnimation(AnimationHelper.asAnimation()
+                                                              .withScale(ScaleConfig.CENTER)
+                                                              .toDismiss())
+                                .withClick(R.id.tv_go, null, true)
+                                .blurBackground(true)
+                                .outSideDismiss(false))
+                .show();
+    }
+
+    void onHeaderClick() {
+        showWjPopup();
     }
 
 

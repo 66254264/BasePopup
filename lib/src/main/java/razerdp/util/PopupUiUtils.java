@@ -3,22 +3,23 @@ package razerdp.util;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.Context;
-import android.content.res.Configuration;
 import android.content.res.Resources;
-import android.graphics.Point;
+import android.graphics.Rect;
 import android.graphics.drawable.Drawable;
 import android.os.Build;
-import android.provider.Settings;
-import android.util.SparseArray;
-import android.view.Surface;
+import android.text.TextUtils;
+import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.ViewTreeObserver;
 import android.view.WindowManager;
 
-import java.util.ArrayList;
-import java.util.List;
+import androidx.annotation.NonNull;
 
-import razerdp.basepopup.BasePopupComponentManager;
+import java.util.HashMap;
+import java.util.Map;
+
+import razerdp.basepopup.BasePopupSDK;
 import razerdp.util.log.PopupLog;
 
 /**
@@ -26,27 +27,55 @@ import razerdp.util.log.PopupLog;
  */
 public class PopupUiUtils {
 
+    public static final String POPUP_DECORVIEW = "android.widget.PopupWindow$PopupDecorView";
+    public static final String POPUP_VIEWCONTAINER = "android.widget.PopupWindow$PopupViewContainer";
+    public static final String POPUP_BACKGROUNDVIEW = "android.widget.PopupWindow$PopupBackgroundView";
 
-    private static final List<String> NAVIGATION_BAR_NAMES = new ArrayList<>();
+    private static final Map<String, Void> NAVIGATION_BAR_NAMES = new HashMap<>();
 
     static {
-        NAVIGATION_BAR_NAMES.add("navigationbarbackground");
-        NAVIGATION_BAR_NAMES.add("immersion_navigation_bar_view");
+        NAVIGATION_BAR_NAMES.put("navigationbarbackground", null);
+        NAVIGATION_BAR_NAMES.put("immersion_navigation_bar_view", null);
     }
 
-    private static final SparseArray<Point> REAL_SIZE = new SparseArray<>();
+    public static void appendNavigationBarID(String id) {
+        NAVIGATION_BAR_NAMES.put(id, null);
+    }
+
+    public static boolean isStatusBarVisible(Context context) {
+        Activity act = PopupUtils.getActivity(context);
+        if (act == null) {
+            return true;
+        }
+        try {
+            return (act.getWindow().getAttributes().flags & WindowManager.LayoutParams.FLAG_FULLSCREEN) == 0;
+        } catch (Exception e) {
+            PopupLog.e(e);
+            return true;
+        }
+    }
+
+    public static boolean isPopupDecorView(View view) {
+        return view != null && TextUtils.equals(view.getClass().getName(), POPUP_DECORVIEW);
+    }
+
+    public static boolean isPopupViewContainer(View view) {
+        return view != null && TextUtils.equals(view.getClass().getName(), POPUP_VIEWCONTAINER);
+    }
+
+    public static boolean isPopupBackgroundView(View view) {
+        return view != null && TextUtils.equals(view.getClass().getName(), POPUP_BACKGROUNDVIEW);
+    }
+
     private static int statusBarHeight;
 
-
-    public static int getNavigationBarHeight() {
-        Resources resources = BasePopupComponentManager.getApplication().getResources();
-        int resourceId = resources.getIdentifier("navigation_bar_height",
-                "dimen", "android");
-        if (resourceId > 0) {
-            //获取NavigationBar的高度
-            return resources.getDimensionPixelSize(resourceId);
+    public static void requestFocus(View v) {
+        if (v == null) return;
+        if (v.isInTouchMode()) {
+            v.requestFocusFromTouch();
+        } else {
+            v.requestFocus();
         }
-        return 0;
     }
 
     /**
@@ -54,91 +83,45 @@ public class PopupUiUtils {
      * https://juejin.im/post/5bb5c4e75188255c72285b54
      */
     @SuppressLint("NewApi")
-    public static boolean hasNavigationBar(Context context) {
+    @NonNull
+    public static void getNavigationBarBounds(Rect r, Context context) {
         Activity act = PopupUtils.getActivity(context);
-        if (!PopupUtils.isActivityAlive(act)) return false;
+        if (!PopupUtils.isActivityAlive(act)) return;
         ViewGroup decorView = (ViewGroup) act.getWindow().getDecorView();
         final int childCount = decorView.getChildCount();
         for (int i = childCount - 1; i >= 0; i--) {
             View child = decorView.getChildAt(i);
             if (child.getId() == View.NO_ID || !child.isShown()) continue;
-            String resourceEntryName;
             try {
-                resourceEntryName = act.getResources().getResourceEntryName(child.getId());
-                if (NAVIGATION_BAR_NAMES.contains(resourceEntryName.toLowerCase())) {
-                    if ((decorView.getSystemUiVisibility() & View.SYSTEM_UI_FLAG_HIDE_NAVIGATION) == 0) {
-                        //如果有手势导航栏，navigationbar始终返回为true，此时需要进一步判断
-                        //如果有手势导航栏，因为一般手势导航栏是很小的一块，因此可以当作木有。。。
-                        return !hasGestureNavigation();
-                    }
+                String resourceEntryName = act.getResources().getResourceEntryName(child.getId());
+                if (NAVIGATION_BAR_NAMES.containsKey(resourceEntryName.toLowerCase())) {
+                    r.set(child.getLeft(), child.getTop(), child.getRight(), child.getBottom());
+                    return;
                 }
             } catch (Exception e) {
                 //do nothing
             }
         }
-        return false;
     }
 
-    public static int getScreenHeightCompat() {
-        checkRealSize();
 
-        int rotation = getScreenRotation();
-        int result = REAL_SIZE.get(getScreenOrientation()).y;
-        try {
-            switch (rotation) {
-                case Surface.ROTATION_0:
-                case Surface.ROTATION_180:
-                    result = REAL_SIZE.get(Configuration.ORIENTATION_PORTRAIT).y;
-                case Surface.ROTATION_90:
-                case Surface.ROTATION_270:
-                    result = REAL_SIZE.get(Configuration.ORIENTATION_LANDSCAPE).y;
-            }
-        } catch (Exception e) {
-            //部分魔改系统会返回错误的rotation，导致npe产生
-            PopupLog.e(e);
+    public static int getNavigationBarGravity(Rect navigationBarBounds) {
+        if (navigationBarBounds == null || navigationBarBounds.isEmpty()) {
+            return Gravity.NO_GRAVITY;
         }
-
-        return result;
-    }
-
-    private static void checkRealSize() {
-        Resources resources = BasePopupComponentManager.getApplication().getResources();
-        int orientation = getScreenOrientation();
-        if (REAL_SIZE.get(orientation) != null) return;
-        WindowManager windowManager = (WindowManager) BasePopupComponentManager.getApplication().getSystemService(Context.WINDOW_SERVICE);
-        Point point = new Point();
-        if (windowManager == null || Build.VERSION.SDK_INT < Build.VERSION_CODES.JELLY_BEAN_MR1) {
-            point.x = resources.getDisplayMetrics().widthPixels;
-            point.y = resources.getDisplayMetrics().heightPixels;
+        if (navigationBarBounds.left <= 0) {
+            if (navigationBarBounds.top <= 0) {
+                return navigationBarBounds.width() > navigationBarBounds.height() ? Gravity.TOP : Gravity.LEFT;
+            } else {
+                return Gravity.BOTTOM;
+            }
         } else {
-            windowManager.getDefaultDisplay().getRealSize(point);
+            return Gravity.RIGHT;
         }
-        REAL_SIZE.put(orientation, point);
-    }
-
-    public static int getScreenWidthCompat() {
-        checkRealSize();
-
-        int rotation = getScreenRotation();
-        int result = REAL_SIZE.get(getScreenOrientation()).x;
-        try {
-            switch (rotation) {
-                case Surface.ROTATION_0:
-                case Surface.ROTATION_180:
-                    result = REAL_SIZE.get(Configuration.ORIENTATION_PORTRAIT).x;
-                case Surface.ROTATION_90:
-                case Surface.ROTATION_270:
-                    result = REAL_SIZE.get(Configuration.ORIENTATION_LANDSCAPE).x;
-            }
-        } catch (Exception e) {
-            //部分魔改系统会返回错误的rotation，导致npe产生
-            PopupLog.e(e);
-        }
-        return result;
     }
 
     public static int getScreenOrientation() {
-        return BasePopupComponentManager.getApplication().getResources().getConfiguration().orientation;
+        return BasePopupSDK.getApplication().getResources().getConfiguration().orientation;
     }
 
     public static int getStatusBarHeight() {
@@ -150,27 +133,12 @@ public class PopupUiUtils {
         if (statusBarHeight != 0) return;
         int result = 0;
         //获取状态栏高度的资源id
-        Resources resources = BasePopupComponentManager.getApplication().getResources();
+        Resources resources = Resources.getSystem();
         int resourceId = resources.getIdentifier("status_bar_height", "dimen", "android");
         if (resourceId > 0) {
             result = resources.getDimensionPixelSize(resourceId);
         }
         statusBarHeight = result;
-    }
-
-    /**
-     * 获取屏幕旋转角度
-     * <p>
-     * 0表示是竖屏; 90表示是左横屏; 180表示是反向竖屏; 270表示是右横屏
-     *
-     * @return one of {@link Surface#ROTATION_0 },{@link Surface#ROTATION_90 },{@link Surface#ROTATION_180 },{@link Surface#ROTATION_270 }
-     */
-    public static int getScreenRotation() {
-        try {
-            return ((WindowManager) BasePopupComponentManager.getApplication().getSystemService(Context.WINDOW_SERVICE)).getDefaultDisplay().getRotation();
-        } catch (Exception e) {
-            return Surface.ROTATION_0;
-        }
     }
 
     public static void setBackground(View v, Drawable background) {
@@ -182,26 +150,44 @@ public class PopupUiUtils {
         }
     }
 
+    public static void safeAddGlobalLayoutListener(View v, ViewTreeObserver.OnGlobalLayoutListener listener) {
+        try {
+            v.getViewTreeObserver().removeOnGlobalLayoutListener(listener);
+            v.getViewTreeObserver().addOnGlobalLayoutListener(listener);
+        } catch (Exception e) {
+            PopupLog.e(e);
+        }
+    }
 
-    //======================
-    private static final String GESTURE_NAV_XVIVO = "navigation_gesture_on";
-    private static final String GESTURE_NAV_XIAOMI = "force_fsg_nav_bar";
-    private static final String GESTURE_NAVA_SAMSUNG = "navigationbar_hide_bar_enabled";
+    public static void safeRemoveGlobalLayoutListener(View v, ViewTreeObserver.OnGlobalLayoutListener listener) {
+        try {
+            v.getViewTreeObserver().removeOnGlobalLayoutListener(listener);
+        } catch (Exception e) {
+            PopupLog.e(e);
+        }
+    }
 
-    /**
-     * 是否拥有手势导航栏，蛋疼的一逼，各个ROM都有自己的参数
-     */
-    private static boolean hasGestureNavigation() {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.JELLY_BEAN_MR1) return false;
-        if (RomUtils.isXiaomi()) {
-            return Settings.Global.getInt(BasePopupComponentManager.getApplication().getContentResolver(), GESTURE_NAV_XIAOMI, 0) != 0;
+    public static boolean isActivityFullScreen(Activity act) {
+        if (act == null || act.getWindow() == null) return false;
+        return (act.getWindow()
+                   .getAttributes().flags & WindowManager.LayoutParams.FLAG_FULLSCREEN) == WindowManager.LayoutParams.FLAG_FULLSCREEN;
+
+    }
+
+    public static int computeGravity(@NonNull Rect popupRect, @NonNull Rect anchorRect) {
+        int gravity = Gravity.NO_GRAVITY;
+        int xDelta = popupRect.centerX() - anchorRect.centerX();
+        int yDelta = popupRect.centerY() - anchorRect.centerY();
+        if (xDelta == 0) {
+            gravity = yDelta == 0 ? Gravity.CENTER : Gravity.CENTER_HORIZONTAL | ((yDelta > 0) ? Gravity.BOTTOM : Gravity.TOP);
         }
-        if (RomUtils.isVivo()) {
-            return Settings.Secure.getInt(BasePopupComponentManager.getApplication().getContentResolver(), GESTURE_NAV_XVIVO, 0) != 0;
+        if (yDelta == 0) {
+            gravity = xDelta == 0 ? Gravity.CENTER : Gravity.CENTER_VERTICAL | ((xDelta > 0) ? Gravity.RIGHT : Gravity.LEFT);
         }
-        if (RomUtils.isSamsung()) {
-            return Settings.Global.getInt(BasePopupComponentManager.getApplication().getContentResolver(), GESTURE_NAVA_SAMSUNG, 0) != 0;
+        if (gravity == Gravity.NO_GRAVITY) {
+            gravity = xDelta > 0 ? Gravity.RIGHT : Gravity.LEFT;
+            gravity |= yDelta > 0 ? Gravity.BOTTOM : Gravity.TOP;
         }
-        return false;
+        return gravity;
     }
 }

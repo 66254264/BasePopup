@@ -5,13 +5,14 @@ import android.view.Gravity;
 import android.view.View;
 import android.widget.CompoundButton;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import androidx.annotation.NonNull;
 import androidx.appcompat.widget.AppCompatCheckBox;
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+
+import java.util.ArrayList;
+import java.util.List;
+
 import butterknife.BindView;
 import butterknife.OnClick;
 import razerdp.basepopup.R;
@@ -37,6 +38,10 @@ public class PopupSlideOption extends BaseOptionPopup<CommonSlideInfo> {
     AppCompatCheckBox anchorCheck;
     @BindView(R.id.check_blur)
     AppCompatCheckBox blurCheck;
+    @BindView(R.id.check_horizontal_align_to_side)
+    AppCompatCheckBox horizontalGravitySideMode;
+    @BindView(R.id.check_vertical_align_to_side)
+    AppCompatCheckBox verticalGravitySideMode;
     @BindView(R.id.tv_go)
     DPTextView tvGo;
 
@@ -57,7 +62,8 @@ public class PopupSlideOption extends BaseOptionPopup<CommonSlideInfo> {
         mAdapter = new SimpleRecyclerViewAdapter<>(context, infos);
         mAdapter.setHolder(InnerViewHolder.class);
         rvContent.setLayoutManager(new GridLayoutManager(context, 2));
-        rvContent.addItemDecoration(new GridItemDecoration(new SpaceOption.Builder().size(UIHelper.DP12).build()));
+        rvContent.addItemDecoration(new GridItemDecoration(new SpaceOption.Builder().size(UIHelper.DP12)
+                .build()));
         rvContent.setItemAnimator(null);
         mAdapter.setOnItemClickListener(new OnItemClickListener<Info>() {
             @Override
@@ -85,6 +91,8 @@ public class PopupSlideOption extends BaseOptionPopup<CommonSlideInfo> {
         mInfo.gravity = gravity;
         mInfo.withAnchor = anchorCheck.isChecked();
         mInfo.blur = blurCheck.isChecked();
+        mInfo.horizontalGravityMode = horizontalGravitySideMode.isChecked() ? GravityMode.ALIGN_TO_ANCHOR_SIDE : GravityMode.RELATIVE_TO_ANCHOR;
+        mInfo.verticalGravityMode = verticalGravitySideMode.isChecked() ? GravityMode.ALIGN_TO_ANCHOR_SIDE : GravityMode.RELATIVE_TO_ANCHOR;
         dismiss();
     }
 
