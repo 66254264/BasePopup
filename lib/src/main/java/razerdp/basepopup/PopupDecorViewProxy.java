@@ -34,12 +34,14 @@ final class PopupDecorViewProxy extends ViewGroup implements KeyboardUtils.OnKey
     private Rect contentRect = new Rect();
     private Rect contentBounds = new Rect();
     private Rect touchableRect = new Rect();
-    private Rect touchableRectCopy = new Rect();
+    private Rect touchableRectOnNoKeyboard = new Rect();
 
     private int childLeftMargin;
     private int childTopMargin;
     private int childRightMargin;
     private int childBottomMargin;
+
+    private boolean reMeasure;
 
     private int[] location = new int[2];
     private Rect lastKeyboardBounds = new Rect();
@@ -92,6 +94,11 @@ final class PopupDecorViewProxy extends ViewGroup implements KeyboardUtils.OnKey
         }
 
         mTarget = target;
+        LayoutParams wp = setupViewSize(target, params);
+        addView(target, wp);
+    }
+
+    WindowManager.LayoutParams setupViewSize(View target, WindowManager.LayoutParams params) {
         WindowManager.LayoutParams wp = new WindowManager.LayoutParams();
         wp.copyFrom(params);
         wp.x = 0;
@@ -99,9 +106,9 @@ final class PopupDecorViewProxy extends ViewGroup implements KeyboardUtils.OnKey
         View contentView = target.findViewById(mHelper.contentRootId);
         if (contentView != null) {
             if (!contentView.hasOnClickListeners()) {
-                mTarget.setOnClickListener(emptyInterceptClickListener);
+                target.setOnClickListener(emptyInterceptClickListener);
             } else {
-                mTarget.setOnClickListener(null);
+                target.setOnClickListener(null);
             }
             LayoutParams lp = contentView.getLayoutParams();
             if (lp == null) {
@@ -162,7 +169,14 @@ final class PopupDecorViewProxy extends ViewGroup implements KeyboardUtils.OnKey
         if (wp.height > 0) {
             wp.height += childTopMargin + childBottomMargin;
         }
-        addView(target, wp);
+        return wp;
+    }
+
+
+    @Override
+    public void requestLayout() {
+        reMeasure = true;
+        super.requestLayout();
     }
 
     @Override
@@ -229,8 +243,10 @@ final class PopupDecorViewProxy extends ViewGroup implements KeyboardUtils.OnKey
         heightMeasureSpec = getChildMeasureSpec(heightMeasureSpec, 0, lp.height);
 
 
-        int widthSize = Math.max(mTarget.getMeasuredWidth(), MeasureSpec.getSize(widthMeasureSpec));
-        int heightSize = Math.max(mTarget.getMeasuredHeight(), MeasureSpec.getSize(heightMeasureSpec));
+        int widthSize = reMeasure ? MeasureSpec.getSize(widthMeasureSpec) :
+                Math.max(mTarget.getMeasuredWidth(), MeasureSpec.getSize(widthMeasureSpec));
+        int heightSize = reMeasure ? MeasureSpec.getSize(heightMeasureSpec) :
+                Math.max(mTarget.getMeasuredHeight(), MeasureSpec.getSize(heightMeasureSpec));
 
         int widthMode = MeasureSpec.getMode(widthMeasureSpec);
         int heightMode = MeasureSpec.getMode(heightMeasureSpec);
@@ -567,6 +583,7 @@ final class PopupDecorViewProxy extends ViewGroup implements KeyboardUtils.OnKey
                 touchableRect.top += childTopMargin;
                 touchableRect.right -= childRightMargin;
                 touchableRect.bottom -= childBottomMargin;
+                touchableRectOnNoKeyboard.set(touchableRect);
                 if (lastKeyboardOffset != 0) {
                     touchableRect.offset(0, lastKeyboardOffset);
                 }
@@ -580,6 +597,7 @@ final class PopupDecorViewProxy extends ViewGroup implements KeyboardUtils.OnKey
                     popupRect.set(contentRect);
                     mHelper.onPopupLayout(popupRect, anchorRect);
                 }
+                reMeasure = false;
             }
         }
     }
@@ -600,6 +618,13 @@ final class PopupDecorViewProxy extends ViewGroup implements KeyboardUtils.OnKey
         boolean intercept = mHelper != null && mHelper.onInterceptTouchEvent(ev);
         if (intercept) return true;
         return super.onInterceptTouchEvent(ev);
+    }
+
+    @Override
+    public boolean onTouchEvent(MotionEvent event) {
+        boolean intercept = mHelper != null && mHelper.onTouchEvent(event);
+        if (intercept) return true;
+        return super.onTouchEvent(event);
     }
 
     @Override
@@ -646,29 +671,6 @@ final class PopupDecorViewProxy extends ViewGroup implements KeyboardUtils.OnKey
     }
 
     @Override
-    public boolean onTouchEvent(MotionEvent event) {
-        if (mHelper != null) {
-            if (mHelper.onTouchEvent(event)) {
-                return true;
-            }
-        }
-        final int x = (int) event.getX();
-        final int y = (int) event.getY();
-
-        if ((event.getAction() == MotionEvent.ACTION_DOWN)
-                && ((x < 0) || (x >= getWidth()) || (y < 0) || (y >= getHeight()))) {
-            if (mHelper != null) {
-                return mHelper.onOutSideTouch();
-            }
-        } else if (event.getAction() == MotionEvent.ACTION_OUTSIDE) {
-            if (mHelper != null) {
-                return mHelper.onOutSideTouch();
-            }
-        }
-        return super.onTouchEvent(event);
-    }
-
-    @Override
     protected void onDetachedFromWindow() {
         super.onDetachedFromWindow();
         clear(true);
@@ -681,13 +683,16 @@ final class PopupDecorViewProxy extends ViewGroup implements KeyboardUtils.OnKey
 
 
     public void updateLayout() {
-        if (mHelper != null) {
-            mHelper.onUpdate();
-        }
         if (mMaskLayout != null) {
             mMaskLayout.update();
         }
-        requestLayout();
+        if (mTarget != null) {
+            WindowManager.LayoutParams lp = (WindowManager.LayoutParams) mTarget.getLayoutParams();
+            if (lp.width != mHelper.getLayoutParams().width || lp.height != mHelper.getLayoutParams().height) {
+                setupViewSize(mTarget, (WindowManager.LayoutParams) mTarget.getLayoutParams());
+            }
+            requestLayout();
+        }
     }
 
 
@@ -779,13 +784,13 @@ final class PopupDecorViewProxy extends ViewGroup implements KeyboardUtils.OnKey
         }
 
         if (isVisible) {
-            touchableRectCopy.set(touchableRect);
+            touchableRectOnNoKeyboard.set(touchableRect);
             lastKeyboardOffset = offset;
             touchableRect.offset(0, offset);
             lastKeyboardBounds.set(keyboardBounds);
         } else {
             lastKeyboardOffset = 0;
-            touchableRect.set(touchableRectCopy);
+            touchableRect.set(touchableRectOnNoKeyboard);
             lastKeyboardBounds.setEmpty();
         }
     }

@@ -7,20 +7,20 @@
 <table align="center">
         <tr>
             <th align="center" width="9999">Release</th>
-            <th align="center" width="9999">Candy</th>
+            <th align="center" width="9999">Snapshot</th>
             <th align="center" width="9999">License</th>
 			<th align="center" width="9999">Api</th>
 			<th align="center" width="9999">Author</th>
         </tr>
            <tr>
                     <td align="center">
-        				<a href ="https://bintray.com/razerdp/maven/BasePopup/_latestVersion">
-        					<img src="https://api.bintray.com/packages/razerdp/maven/BasePopup/images/download.svg"/>
+        				<a href ="https://search.maven.org/artifact/io.github.razerdp/BasePopup">
+        					<img src="https://img.shields.io/maven-central/v/io.github.razerdp/BasePopup"/>
         				</a>
         			</td>
         			<td align="center">
-        				<a href = "https://bintray.com/razerdp/maven/BasePopup_Candy/_latestVersion">
-        					<img src="https://api.bintray.com/packages/razerdp/maven/BasePopup_Candy/images/download.svg"/>
+        				<a href = "https://s01.oss.sonatype.org/content/repositories/snapshots/io/github/razerdp/BasePopup/">
+        					<img src="https://img.shields.io/nexus/s/io.github.razerdp/BasePopup?server=https%3A%2F%2Fs01.oss.sonatype.org%2F"/>
         				</a>
         			</td>
         			<td align="center">
@@ -89,22 +89,40 @@
 
   - **请务必仔细阅读本README,每个版本升级请务必查阅更新日志，这可以为您减少不必要弯路**
   - **2.2.2版本开始不再支持Support，建议您尽快升级到AndroidX**
-  - **请注意引用版本的问题，Release版本是稳定版，Candy是预览版。**
-    - Release版本：一般在Candy版本反复验证修复后发布到Release，如果您对稳定性要求较高，请使用Release版本。
-    - Candy版本：一般新功能、issue修复都会发布到Candy版本，Candy版本发布比较频繁，但通常会拥有新的功能，如果您喜欢试验新功能同时对稳定性要求不高，请使用Candy版本。
-    - **Release和Candy两个版本互相切换可能会导致Build失败，这时候您Clean一下Project即可**
-  - 从16年[**第一次**](https://github.com/razerdp/BasePopup/commit/c92b7088270d5757269d9b79213627a4a0392d31)提交到现在，本人技术也一直在进步，BasePopup也会一直迭代更新，所以，请谨慎选择版本哦~一不小心就颠覆了之前的实现。
+  - **请注意引用版本的问题，Release版本是稳定版，Snapshot是预览版。**
+    - Release版本：一般在Snapshot版本反复验证修复后发布到Release，如果您对稳定性要求较高，请使用Release版本。
+    - Snapshot：一般新功能、issue修复都会发布到Snapshot版本，Snapshot版本发布比较频繁，但通常会拥有新的功能，如果您喜欢试验新功能同时对稳定性要求不高，请使用Snapshot版本。
+    - **Release和Snapshot两个版本互相切换可能会导致Build失败，这时候您Clean一下Project即可**
+  - **3.0版本是破坏性升级，请您务必阅读升级提示**：[关于BasePopup 3.0的破坏性更新说明](./Update_3.0.md)
 
 <br>
 
 ### 环境依赖
 
+#### root gradle配置
+
+```
+allprojects {
+    repositories {
+        mavenCentral() // release依赖仓库（4.1后as默认配置有）
+        maven { url 'https://s01.oss.sonatype.org/content/repositories/snapshots' } // snapshot仓库（如果需要snapshot依赖，请配置该maven）
+        google()
+    }
+}
+```
+
+#### 依赖
+
 请把下述 **{$latestVersion}** 替换为上面表格中对应的版本。
 
-**自2.2.2版本开始，BasePopup将完全迁移至AndroidX，不再提供扩展组件了**，BasePopup建议您尽早迁移到AndroidX
+**由于JCenter已经停止服务，自2.3版本开始，本库将迁移到Maven，新的依赖groupId为 【io.github.razerdp】**
 
- - **Release：** `implementation 'com.github.razerdp:BasePopup:{$latestVersion}'`
- - **Candy：** `implementation 'com.github.razerdp:BasePopup_Candy:{$latestVersion}'`
+**3.0版本是破坏性升级，请您务必阅读升级提示**：[关于BasePopup 3.0的破坏性更新说明](./Update_3.0.md)
+
+ - **Release：** `implementation 'io.github.razerdp:BasePopup:{$latestVersion}'`
+    - e.g.  `implementation 'io.github.razerdp:BasePopup:2.3.0'`
+ - **Snapshot：** `implementation 'io.github.razerdp:BasePopup:{$latestVersion_for_snapshot}-SNAPSHOT'`
+    - e.g. `implementation 'io.github.razerdp:BasePopup:2.3.2-SNAPSHOT'`
 
 <br>
 
@@ -117,19 +135,31 @@ BasePopup配备完善的文档，建议您优先查阅文档。
 <br>
 
 
-
 ### 更新日志 [(历史更新)](https://www.yuque.com/razerdp/basepopup/uyrsxx)
 
-**正在开发日志（Candy版本）请查看dev分支：** [**branch-dev**](https://github.com/razerdp/BasePopup/tree/dev#%E6%9B%B4%E6%96%B0%E6%97%A5%E5%BF%97-%E5%8E%86%E5%8F%B2%E6%9B%B4%E6%96%B0)
-
-* **【Release】2.2.20** (2021/02/03)
-  * 请更新到该版本~
-  * 修复PopupDecorProxy多次测量时出现的测量取值问题[#389](https://github.com/razerdp/BasePopup/issues/389)
-  * 修复适配键盘后触发requestLayout()导致触摸判断错误的问题[#390](https://github.com/razerdp/BasePopup/issues/390)
+* **【Release】3.1.0** (2021/05/28)
+    * 本次更新是破坏性更新，更新之前如果您仍处于2.x版本，请务必阅读以下两项事项：
+        * 由于JCenter已经停止服务，因此3.0版本开始将会迁移到MavenCentral，新的依赖groupId为【io.github.razerdp】，具体请查看上面的[环境依赖](#环境依赖)
+        * 3.0版本是破坏性升级，影响范围为所有BasePopupWindow子类，但修改不会很多，具体请看[关于BasePopup 3.0的破坏性更新说明](./Update_3.0.md)
+    * 【优化】
+        * 增加api：`hideKeyboardOnShow(boolean)`，是否在BasePopup显示时收起键盘，默认收起
+            * demo增加 issue 369测试用例
+            * fixed [#369](https://github.com/razerdp/BasePopup/issues/369)
+        * 蒙层现在只有点击的时候才会执行dismiss（之前是只判断action_up是否在蒙层内）
+            * `onOutSideTouch`增加isMaskPressed标记
+    * 【Api修改】
+        * 删除**BaseLazyPopupWindow**：往后不需要区分懒加载和正常的BasePopupWindow，统一依赖BasePopupWindow
+        * 删除方法`onCreateConstructor`：该方法实际上是给BaseLazyPopupWindow使用的，现在没有了BaseLazyPopupWindow，自然不需要该方法
+        * 删除方法`onCreateContentView`：该方法的删除将会影响所有的BasePopupWindow子类，您需要手动去改动
+            * 该方法将会被`setContentView(@LayoutRes int layoutResID)`或`setContentView(final View view)`所代替，您需要修改其使用。
+            * 如果使用`setContentView(final View view)`，我们依然建议您用setContentView(createPopupById(layoutResID))，以便我们解析到正确的xml配置。
+    * 【修复】
+        * 修复屏幕旋转后Popup大小没更新的问题
+        * 修复`update(float,float)`失效的问题
 
 <br>
 
-### 例子预览r
+### 例子预览
 
 <br>
 
